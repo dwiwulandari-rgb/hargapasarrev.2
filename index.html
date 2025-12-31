@@ -1,0 +1,787 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { BookOpen, Activity, PlayCircle, CheckCircle, HelpCircle, TrendingUp, Users, ShoppingCart, Award, Volume2, VolumeX, Info } from 'lucide-react';
+
+// --- SOUND UTILITY (Simple Web Audio API Synth) ---
+const useSoundEffects = () => {
+  const [isMuted, setIsMuted] = useState(false);
+
+  const playSound = useCallback((type) => {
+    if (isMuted) return;
+    
+    // Safety check for SSR or environments without AudioContext
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+
+    if (type === 'click') {
+      // Suara "Pop" pendek
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+      gainNode.gain.setValueAtTime(0.1, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+      osc.start(now);
+      osc.stop(now + 0.1);
+    } else if (type === 'hover') {
+      // Suara "Tick" sangat halus
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(800, now);
+      gainNode.gain.setValueAtTime(0.02, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    } else if (type === 'correct') {
+      // Suara "Ding" (Chord Mayor)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+
+      osc.type = 'sine';
+      osc2.type = 'triangle';
+      
+      osc.frequency.setValueAtTime(523.25, now); // C5
+      osc2.frequency.setValueAtTime(659.25, now); // E5
+
+      gainNode.gain.setValueAtTime(0.1, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+      
+      gain2.gain.setValueAtTime(0.1, now);
+      gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+      osc.start(now);
+      osc2.start(now);
+      osc.stop(now + 0.5);
+      osc2.stop(now + 0.5);
+    } else if (type === 'wrong') {
+      // Suara "Buzz" rendah
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, now);
+      osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+      gainNode.gain.setValueAtTime(0.1, now);
+      gainNode.gain.linearRampToValueAtTime(0.01, now + 0.3);
+      osc.start(now);
+      osc.stop(now + 0.3);
+    } else if (type === 'win') {
+      // Fanfare sederhana
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(523.25, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.1);
+      osc.frequency.setValueAtTime(783.99, now + 0.2);
+      osc.frequency.setValueAtTime(1046.50, now + 0.3);
+      
+      gainNode.gain.setValueAtTime(0.05, now);
+      gainNode.gain.linearRampToValueAtTime(0, now + 0.6);
+      
+      osc.start(now);
+      osc.stop(now + 0.6);
+    }
+  }, [isMuted]);
+
+  return { playSound, isMuted, setIsMuted };
+};
+
+const App = () => {
+  const [activeTab, setActiveTab] = useState(0);
+  const { playSound, isMuted, setIsMuted } = useSoundEffects();
+
+  const tabs = [
+    { id: 0, title: 'Asesmen', shortTitle: 'Asesmen', icon: <Activity size={18} /> },
+    { id: 1, title: 'Ice Breaking', shortTitle: 'Games', icon: <PlayCircle size={18} /> },
+    { id: 2, title: 'Materi 1', shortTitle: 'Konsep', icon: <BookOpen size={18} /> },
+    { id: 3, title: 'Materi 2', shortTitle: 'Pasar', icon: <TrendingUp size={18} /> },
+    { id: 4, title: 'Latihan', shortTitle: 'Kuis', icon: <CheckCircle size={18} /> },
+    { id: 5, title: 'Refleksi', shortTitle: 'Refleksi', icon: <HelpCircle size={18} /> },
+  ];
+
+  const handleTabChange = (id) => {
+    playSound('click');
+    setActiveTab(id);
+  };
+
+  return (
+    <div className="min-h-screen bg-amber-50 font-sans text-gray-800 border-t-8 border-amber-600">
+      {/* Header */}
+      <header className="bg-gradient-to-r from-amber-500 to-orange-600 text-white p-4 shadow-lg sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-xl md:text-2xl font-extrabold tracking-tight drop-shadow-md flex items-center gap-2">
+              IPS KELAS 8 ⚠️
+            </h1>
+            <p className="text-amber-100 text-xs md:text-sm font-medium hidden md:block">Modul Interaktif: Permintaan, Penawaran, & Harga Pasar</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsMuted(!isMuted)} 
+              className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors focus:ring-2 focus:ring-white"
+              title={isMuted ? "Unmute" : "Mute"}
+            >
+              {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            </button>
+            <div className="text-right text-xs opacity-90 font-mono bg-black/20 px-3 py-1 rounded hidden sm:block">
+              GURU PENGAMPU
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <div className="max-w-5xl mx-auto mt-6 px-4 pb-12">
+        
+        {/* Navigation Tabs (Horizontal Scrollable) */}
+        <div className="mb-6 sticky top-[72px] z-40 bg-amber-50/95 backdrop-blur-sm py-2 -mx-4 px-4 shadow-sm md:static md:bg-transparent md:shadow-none md:p-0">
+          <nav className="flex space-x-2 overflow-x-auto pb-2 scrollbar-hide snap-x md:justify-center">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                onMouseEnter={() => playSound('hover')}
+                className={`
+                  flex-shrink-0 flex items-center gap-2 px-5 py-3 rounded-full font-bold text-sm md:text-base transition-all duration-300 snap-center
+                  ${
+                    activeTab === tab.id
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg scale-105 ring-2 ring-orange-300 ring-offset-2 ring-offset-amber-50'
+                      : 'bg-white text-gray-500 border border-gray-200 hover:bg-amber-100 hover:text-amber-700'
+                  }
+                `}
+              >
+                {tab.icon}
+                <span className="hidden md:inline">{tab.title}</span>
+                <span className="md:hidden">{tab.shortTitle}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Info Banner */}
+        <div className="mb-6 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-3 rounded-r shadow-sm flex items-start gap-3 text-sm animate-fade-in">
+          <Info className="flex-shrink-0 mt-0.5" size={18} />
+          <div>
+            <strong>Tips Guru:</strong> Pastikan speaker aktif 🔊. Gunakan tab secara berurutan dari kiri ke kanan untuk alur belajar terbaik.
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <main className="bg-white rounded-3xl shadow-xl border-2 border-amber-100 min-h-[500px] p-4 md:p-8 relative transition-all duration-500">
+          {activeTab === 0 && <AsesmenAwal playSound={playSound} />}
+          {activeTab === 1 && <IceBreaking playSound={playSound} />}
+          {activeTab === 2 && <MateriKonsep playSound={playSound} />}
+          {activeTab === 3 && <MateriHargaPasar playSound={playSound} />}
+          {activeTab === 4 && <LatihanSoal playSound={playSound} />}
+          {activeTab === 5 && <Refleksi playSound={playSound} />}
+        </main>
+      </div>
+    </div>
+  );
+};
+
+// --- TAB 1: ASESMEN AWAL ---
+const AsesmenAwal = ({ playSound }) => {
+  const [answers, setAnswers] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+
+  const questions = [
+    { id: 1, text: "Pasar harus selalu berupa bangunan fisik seperti gedung atau toko.", correct: false },
+    { id: 2, text: "Jika harga barang murah, biasanya pembeli ingin membeli lebih banyak.", correct: true },
+    { id: 3, text: "Produsen adalah pihak yang menggunakan atau menghabiskan nilai guna barang.", correct: false },
+    { id: 4, text: "Tawar-menawar adalah cara untuk mencapai kesepakatan harga.", correct: true },
+    { id: 5, text: "Jika barang langka tapi banyak yang butuh, harga cenderung naik.", correct: true },
+    { id: 6, text: "Keseimbangan pasar terjadi saat Pembeli dan Penjual sepakat pada harga tertentu.", correct: true },
+    { id: 7, text: "Hukum permintaan dilihat dari sudut pandang Penjual.", correct: false },
+    { id: 8, text: "Diskon biasanya diberikan saat penjual ingin meningkatkan penjualan.", correct: true },
+    { id: 9, text: "Pasar online (e-commerce) tidak termasuk dalam pengertian pasar ekonomi.", correct: false },
+    { id: 10, text: "Uang berfungsi sebagai alat tukar yang sah.", correct: true },
+  ];
+
+  const handleAnswer = (id, val) => {
+    if (submitted) return;
+    playSound('click');
+    setAnswers({ ...answers, [id]: val });
+  };
+
+  const calculateScore = () => {
+    let score = 0;
+    questions.forEach(q => {
+      if (answers[q.id] === q.correct) score += 10;
+    });
+    return score;
+  };
+
+  const handleSubmit = () => {
+    setSubmitted(true);
+    const score = calculateScore();
+    if (score > 70) playSound('win');
+    else playSound('wrong');
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="border-b-4 border-amber-200 pb-4">
+        <h2 className="text-3xl font-extrabold text-amber-800">Asesmen Awal 📝</h2>
+        <p className="text-gray-600 font-medium">Cek pengetahuan dasar sebelum mulai!</p>
+      </div>
+
+      <div className="space-y-4">
+        {questions.map((q, idx) => (
+          <div key={q.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-amber-400 hover:shadow-md transition-all">
+            <span className="mb-2 sm:mb-0 text-sm md:text-base font-bold text-gray-700">{idx + 1}. {q.text}</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleAnswer(q.id, true)}
+                className={`px-6 py-2 rounded-full text-sm font-bold transition-transform active:scale-95 ${
+                  answers[q.id] === true
+                    ? 'bg-amber-500 text-white shadow-lg ring-2 ring-amber-300'
+                    : 'bg-white text-gray-500 border-2 border-gray-200 hover:bg-amber-50'
+                } ${submitted && q.correct ? 'ring-4 ring-green-400' : ''}`}
+              >
+                Benar
+              </button>
+              <button
+                onClick={() => handleAnswer(q.id, false)}
+                className={`px-6 py-2 rounded-full text-sm font-bold transition-transform active:scale-95 ${
+                  answers[q.id] === false
+                    ? 'bg-red-500 text-white shadow-lg ring-2 ring-red-300'
+                    : 'bg-white text-gray-500 border-2 border-gray-200 hover:bg-red-50'
+                } ${submitted && !q.correct ? 'ring-4 ring-green-400' : ''}`}
+              >
+                Salah
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="pt-6 sticky bottom-4">
+        {!submitted ? (
+          <button
+            onClick={handleSubmit}
+            disabled={Object.keys(answers).length < 10}
+            className="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white py-4 rounded-xl font-bold text-lg shadow-xl hover:shadow-2xl hover:scale-[1.01] active:scale-95 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all transform"
+          >
+            Cek Hasil
+          </button>
+        ) : (
+          <div className="bg-amber-50 border-2 border-amber-400 text-amber-900 p-6 rounded-xl text-center shadow-lg animate-scale-in">
+            <h3 className="text-3xl font-black mb-2">Nilai Kamu: {calculateScore()} / 100</h3>
+            <p className="font-medium">{calculateScore() > 70 ? "Keren banget! Modal bagus buat belajar ekonomi!" : "Gapapa, ayo kita pelajari materinya bareng-bareng!"}</p>
+            <button onClick={() => { setSubmitted(false); setAnswers({}); playSound('click'); }} className="mt-4 px-4 py-2 bg-white border border-amber-300 rounded-lg text-amber-700 hover:bg-amber-100 font-bold">Ulangi Tes</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// --- TAB 2: ICE BREAKING ---
+const IceBreaking = ({ playSound }) => {
+  const [scenario, setScenario] = useState(0);
+  const [feedback, setFeedback] = useState(null);
+
+  const scenarios = [
+    {
+      id: 1,
+      title: "Kasus: Lebaran Idul Fitri 🕌",
+      desc: "Besok lebaran! Semua orang cari daging sapi buat rendang. Apa yang terjadi pada harga daging?",
+      options: [
+        { label: "Harga Naik Tajam 📈", correct: true, reason: "Betul! Permintaan (Demand) naik drastis, barang jadi rebutan!" },
+        { label: "Harga Turun Drastis 📉", correct: false, reason: "Kurang tepat. Penjual pasti naikin harga karena banyak yang butuh." }
+      ]
+    },
+    {
+      id: 2,
+      title: "Kasus: Panen Raya Mangga 🥭",
+      desc: "Di desa lagi panen raya. Mangga melimpah ruah sampai tumpah-tumpah di jalan. Harganya gimana?",
+      options: [
+        { label: "Harga Mahal Banget", correct: false, reason: "Salah. Kalau stok kebanyakan (Banjir Supply), harga pasti anjlok." },
+        { label: "Harga Murah / Obral", correct: true, reason: "Tepat! Penawaran (Supply) berlebih bikin harga turun biar cepat laku." }
+      ]
+    },
+    {
+      id: 3,
+      title: "Kasus: Viral di TikTok 📱",
+      desc: "Topi merek 'X' dipakai artis terkenal dan viral. Semua orang pengen punya. Efek ke harga?",
+      options: [
+        { label: "Harga Naik", correct: true, reason: "Ya! Selera masyarakat berubah jadi suka, permintaan naik -> harga naik." },
+        { label: "Harga Tetap", correct: false, reason: "Kurang tepat. Pedagang pintar pasti manfaatkan momen viral buat cuan." }
+      ]
+    }
+  ];
+
+  const handleChoice = (isCorrect, reason) => {
+    if (isCorrect) playSound('correct');
+    else playSound('wrong');
+    setFeedback({ isCorrect, reason });
+  };
+
+  const nextScenario = () => {
+    playSound('click');
+    setFeedback(null);
+    if (scenario < scenarios.length - 1) {
+      setScenario(scenario + 1);
+    } else {
+      setScenario(0); 
+    }
+  };
+
+  const current = scenarios[scenario];
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center space-y-8 py-8 animate-fade-in">
+      <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-8 py-3 rounded-full font-black text-xl shadow-xl flex items-center gap-2 transform rotate-[-2deg]">
+        <Activity size={24} />
+        TEBAK TREN PASAR!
+      </div>
+
+      <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-[0_10px_40px_-15px_rgba(245,158,11,0.5)] border-4 border-yellow-400 relative overflow-hidden">
+        {/* Progress Bar */}
+        <div className="absolute top-0 left-0 w-full h-3 bg-gray-100">
+           <div className="h-full bg-yellow-500 transition-all duration-500" style={{ width: `${((scenario + 1) / scenarios.length) * 100}%` }}></div>
+        </div>
+
+        <h3 className="text-2xl font-black text-gray-800 mb-4 mt-2">{current.title}</h3>
+        <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 mb-6 min-h-[100px] flex items-center justify-center">
+          <p className="text-gray-800 font-medium text-lg">{current.desc}</p>
+        </div>
+
+        {!feedback ? (
+          <div className="grid grid-cols-1 gap-4">
+            {current.options.map((opt, idx) => (
+              <button
+                key={idx}
+                onMouseEnter={() => playSound('hover')}
+                onClick={() => handleChoice(opt.correct, opt.reason)}
+                className="py-4 px-6 bg-white text-gray-700 rounded-xl font-bold text-lg hover:bg-orange-500 hover:text-white hover:scale-105 transition-all border-2 border-gray-200 hover:border-orange-500 shadow-sm active:scale-95"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="animate-fade-in-up">
+            <div className={`p-6 rounded-xl mb-6 border-2 ${feedback.isCorrect ? 'bg-green-100 border-green-400 text-green-900' : 'bg-red-100 border-red-400 text-red-900'}`}>
+              <p className="font-black text-2xl mb-2">{feedback.isCorrect ? "🎉 BENAR!" : "😅 SALAH!"}</p>
+              <p className="font-medium">{feedback.reason}</p>
+            </div>
+            <button
+              onClick={nextScenario}
+              className="px-8 py-3 bg-gray-800 text-white rounded-full font-bold hover:bg-black shadow-lg hover:scale-105 transition-transform"
+            >
+              {scenario < scenarios.length - 1 ? "Soal Selanjutnya ➡️" : "Main Lagi 🔄"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// --- TAB 3: MATERI KONSEP ---
+const MateriKonsep = ({ playSound }) => {
+  return (
+    <div className="space-y-8 animate-fade-in">
+      <div className="bg-gradient-to-r from-orange-100 to-yellow-50 p-6 rounded-2xl border-l-8 border-orange-500 shadow-sm">
+        <h2 className="text-4xl font-black text-gray-800 mb-2">Permintaan & Penawaran</h2>
+        <p className="text-gray-600 text-lg font-medium">Dua kekuatan raksasa yang menggerakkan ekonomi dunia!</p>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* Permintaan */}
+        <div 
+          className="group bg-white p-6 rounded-2xl border-2 border-orange-100 hover:border-orange-400 shadow-md hover:shadow-xl transition-all duration-300"
+          onMouseEnter={() => playSound('hover')}
+        >
+          <div className="flex items-center gap-4 mb-6">
+            <div className="p-4 bg-orange-100 text-orange-600 rounded-2xl group-hover:bg-orange-500 group-hover:text-white transition-colors">
+              <ShoppingCart size={32} />
+            </div>
+            <h3 className="text-2xl font-extrabold text-orange-800">Permintaan (Demand)</h3>
+          </div>
+          <p className="text-gray-600 mb-6 leading-relaxed">
+            Ini adalah <strong className="text-orange-600">SUARA PEMBELI</strong>. Berapa banyak barang yang ingin kita beli saat harga murah atau mahal?
+          </p>
+          <div className="bg-orange-50 p-5 rounded-xl border border-orange-200">
+            <h4 className="font-bold text-orange-900 mb-4 border-b border-orange-200 pb-2">Hukum Permintaan 📉</h4>
+            <div className="flex items-center justify-around text-center font-bold">
+              <div className="bg-white p-3 rounded shadow-sm">
+                <p className="text-xs text-gray-400 uppercase">Harga</p>
+                <p className="text-red-500 text-2xl">NAIK ⬆</p>
+              </div>
+              <span className="text-gray-300 text-2xl">➡️</span>
+              <div className="bg-white p-3 rounded shadow-sm">
+                <p className="text-xs text-gray-400 uppercase">Beli</p>
+                <p className="text-blue-500 text-2xl">TURUN ⬇</p>
+              </div>
+            </div>
+            <p className="text-sm text-center mt-4 text-gray-500 italic bg-white/50 py-1 rounded">"Makin mahal, makin males beli"</p>
+          </div>
+        </div>
+
+        {/* Penawaran */}
+        <div 
+          className="group bg-white p-6 rounded-2xl border-2 border-green-100 hover:border-green-400 shadow-md hover:shadow-xl transition-all duration-300"
+          onMouseEnter={() => playSound('hover')}
+        >
+          <div className="flex items-center gap-4 mb-6">
+            <div className="p-4 bg-green-100 text-green-600 rounded-2xl group-hover:bg-green-500 group-hover:text-white transition-colors">
+              <Users size={32} />
+            </div>
+            <h3 className="text-2xl font-extrabold text-green-800">Penawaran (Supply)</h3>
+          </div>
+          <p className="text-gray-600 mb-6 leading-relaxed">
+            Ini adalah <strong className="text-green-600">SUARA PENJUAL</strong>. Berapa banyak barang yang ingin dijual pedagang biar untung gede?
+          </p>
+          <div className="bg-green-50 p-5 rounded-xl border border-green-200">
+            <h4 className="font-bold text-green-900 mb-4 border-b border-green-200 pb-2">Hukum Penawaran 📈</h4>
+            <div className="flex items-center justify-around text-center font-bold">
+              <div className="bg-white p-3 rounded shadow-sm">
+                <p className="text-xs text-gray-400 uppercase">Harga</p>
+                <p className="text-red-500 text-2xl">NAIK ⬆</p>
+              </div>
+              <span className="text-gray-300 text-2xl">➡️</span>
+              <div className="bg-white p-3 rounded shadow-sm">
+                <p className="text-xs text-gray-400 uppercase">Jual</p>
+                <p className="text-blue-500 text-2xl">NAIK ⬆</p>
+              </div>
+            </div>
+            <p className="text-sm text-center mt-4 text-gray-500 italic bg-white/50 py-1 rounded">"Makin mahal, makin semangat jualan"</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-yellow-100 p-4 rounded-xl border-2 border-yellow-300 text-yellow-800 flex gap-3 items-start">
+         <div className="bg-yellow-300 p-1 rounded text-white font-bold text-xs mt-1">INFO</div>
+         <p className="text-sm"><strong>Ceteris Paribus:</strong> Hukum di atas cuma berlaku kalau faktor lain (kayak gaji, selera, teknologi) dianggap tetap/nggak berubah ya!</p>
+      </div>
+    </div>
+  );
+};
+
+// --- TAB 4: MATERI HARGA PASAR (SIMULASI) ---
+const MateriHargaPasar = ({ playSound }) => {
+  const [highlightRow, setHighlightRow] = useState(null);
+
+  const data = [
+    { price: 10000, demand: 50, supply: 10, status: "Rebutan! (Shortage)" },
+    { price: 12000, demand: 40, supply: 20, status: "Masih Kurang" },
+    { price: 15000, demand: 30, supply: 30, status: "🤝 DEAL! (Ekuilibrium)" },
+    { price: 18000, demand: 20, supply: 40, status: "Kebanyakan Stok" },
+    { price: 20000, demand: 10, supply: 50, status: "Gudang Penuh (Surplus)" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="border-b-4 border-gray-100 pb-4">
+        <h2 className="text-2xl font-black text-gray-800">Terbentuknya Harga Pasar</h2>
+        <p className="text-gray-600">Kapan sih harga itu dibilang "Cocok"?</p>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-8">
+        {/* Tabel */}
+        <div className="flex-1">
+          <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+            <span className="bg-amber-500 text-white px-2 py-1 rounded text-sm shadow">Contoh Kasus</span>
+            Pasar Bakso
+          </h3>
+          <div className="overflow-hidden rounded-xl border-2 border-gray-200 shadow-md">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-gray-800 text-white uppercase font-bold tracking-wider">
+                <tr>
+                  <th className="px-4 py-4">Harga (Rp)</th>
+                  <th className="px-4 py-4">Pembeli (Qd)</th>
+                  <th className="px-4 py-4">Penjual (Qs)</th>
+                  <th className="px-4 py-4">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.map((row, idx) => (
+                  <tr
+                    key={idx}
+                    onMouseEnter={() => { setHighlightRow(idx); playSound('hover'); }}
+                    onMouseLeave={() => setHighlightRow(null)}
+                    className={`cursor-pointer transition-all duration-150 ${
+                      row.demand === row.supply ? 'bg-green-100 font-bold border-l-8 border-green-500 scale-[1.02] shadow-sm' : 
+                      highlightRow === idx ? 'bg-amber-50 pl-2' : 'bg-white border-b'
+                    }`}
+                  >
+                    <td className="px-4 py-3">{row.price.toLocaleString()}</td>
+                    <td className="px-4 py-3">{row.demand}</td>
+                    <td className="px-4 py-3">{row.supply}</td>
+                    <td className={`px-4 py-3 font-bold ${row.demand === row.supply ? 'text-green-700' : row.demand > row.supply ? 'text-red-500' : 'text-blue-500'}`}>
+                      {row.status}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-gray-500 mt-2 italic">*Geser mouse ke baris tabel buat lihat efeknya</p>
+        </div>
+
+        {/* Visualisasi Kurva Sederhana SVG */}
+        <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 rounded-2xl p-6 border-2 border-dashed border-gray-300 relative">
+          <div className="absolute top-0 right-0 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl">GRAFIK</div>
+          <h3 className="font-bold text-gray-700 mb-4">Kurva Keseimbangan (X)</h3>
+          <div className="relative w-64 h-64 bg-white border-l-4 border-b-4 border-gray-800 p-4 shadow-inner rounded-tr-xl">
+            {/* Labels */}
+            <span className="absolute -left-8 top-0 text-xs font-bold transform -rotate-90">Harga (P)</span>
+            <span className="absolute bottom-[-25px] right-0 text-xs font-bold">Jumlah (Q)</span>
+            
+            {/* Demand Curve (Down) */}
+            <svg className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-visible">
+              <line x1="10" y1="10" x2="220" y2="220" stroke="#f97316" strokeWidth="4" strokeLinecap="round" />
+              <text x="210" y="235" fill="#f97316" fontWeight="bold" fontSize="14">D</text>
+              
+              {/* Supply Curve (Up) */}
+              <line x1="10" y1="220" x2="220" y2="10" stroke="#10b981" strokeWidth="4" strokeLinecap="round" />
+              <text x="210" y="10" fill="#10b981" fontWeight="bold" fontSize="14">S</text>
+
+              {/* Equilibrium Point */}
+              <circle cx="115" cy="115" r="8" fill="#2563eb" className="animate-pulse" />
+              
+              {/* Dashed Lines */}
+              <line x1="115" y1="115" x2="0" y2="115" stroke="#94a3b8" strokeWidth="2" strokeDasharray="5" />
+              <line x1="115" y1="115" x2="115" y2="240" stroke="#94a3b8" strokeWidth="2" strokeDasharray="5" />
+
+              <text x="125" y="105" fill="#2563eb" fontWeight="bold" fontSize="14">Titik E</text>
+              <text x="-35" y="120" fill="#64748b" fontSize="12" fontWeight="bold">Rp15k</text>
+              <text x="105" y="255" fill="#64748b" fontSize="12" fontWeight="bold">30</text>
+            </svg>
+          </div>
+          <div className="mt-6 text-sm bg-blue-100 text-blue-800 p-3 rounded-lg font-medium text-center w-full">
+            Titik <strong>E</strong> = Jabat Tangan 🤝
+            <br/>(Harga Sepakat)
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- TAB 5: LATIHAN SOAL ---
+const LatihanSoal = ({ playSound }) => {
+  const [currentQ, setCurrentQ] = useState(0);
+  const [score, setScore] = useState(0);
+  const [showResult, setShowResult] = useState(false);
+  const [selected, setSelected] = useState(null);
+
+  const questions = [
+    {
+      q: "Kurva permintaan memiliki kemiringan (slope) negatif. Artinya bergerak dari...",
+      options: ["Kiri bawah ke kanan atas", "Kiri atas ke kanan bawah", "Tegak lurus vertikal", "Mendatar horizontal"],
+      a: 1
+    },
+    {
+      q: "Jika harga Rp2.000, permintaan 100 dan penawaran 50. Apa yang terjadi?",
+      options: ["Harga Pasar tercapai", "Surplus (Kelebihan barang)", "Shortage (Kekurangan barang)", "Tidak ada transaksi"],
+      a: 2
+    },
+    {
+      q: "Faktor apa yang bisa menggeser kurva permintaan ke kanan (naik) walau harga tetap?",
+      options: ["Biaya produksi naik", "Teknologi mesin baru", "Pendapatan masyarakat naik", "Harga barang itu sendiri naik"],
+      a: 2
+    },
+    {
+      q: "Rumus keseimbangan pasar adalah...",
+      options: ["Qd = Qs", "Qd > Qs", "Qd < Qs", "Qd + Qs = 0"],
+      a: 0
+    },
+    {
+      q: "Siapa yang menentukan harga pasar dalam sistem ekonomi bebas?",
+      options: ["Hanya Pemerintah", "Hanya Penjual", "Hanya Pembeli", "Kesepakatan Penjual dan Pembeli"],
+      a: 3
+    }
+  ];
+
+  const handleSelect = (idx) => {
+    playSound('click');
+    setSelected(idx);
+  };
+
+  const nextQuestion = () => {
+    let isCorrect = selected === questions[currentQ].a;
+    
+    if (isCorrect) {
+      playSound('correct');
+      setScore(score + 20);
+    } else {
+      playSound('wrong');
+    }
+    
+    if (currentQ < questions.length - 1) {
+      setCurrentQ(currentQ + 1);
+      setSelected(null);
+    } else {
+      if(isCorrect && score + 20 === 100) playSound('win');
+      setShowResult(true);
+    }
+  };
+
+  if (showResult) {
+    return (
+      <div className="text-center py-10 space-y-6 animate-fade-in bg-white rounded-xl border-4 border-amber-400 shadow-2xl p-8">
+        <div className="inline-block p-4 rounded-full bg-yellow-100 text-yellow-500 mb-4 animate-bounce">
+          <Award className="w-24 h-24" />
+        </div>
+        <h2 className="text-4xl font-black text-gray-800">HASIL KUIS</h2>
+        <div className="text-6xl font-black text-amber-600 drop-shadow-sm">{score} <span className="text-2xl text-gray-400 font-medium">/ 100</span></div>
+        <p className="text-gray-600 text-xl font-medium">
+          {score === 100 ? "LUAR BIASA! CALON MENTERI EKONOMI! 🏆" : score >= 60 ? "BAGUS! Tingkatkan lagi ya! 👍" : "JANGAN NYERAH! Coba baca lagi materinya 💪"}
+        </p>
+        <button
+          onClick={() => { playSound('click'); setShowResult(false); setCurrentQ(0); setScore(0); setSelected(null); }}
+          className="bg-gray-800 text-white px-8 py-4 rounded-xl font-bold hover:bg-black transition shadow-lg hover:scale-105"
+        >
+          Coba Lagi 🔄
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto py-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-black text-gray-800">Latihan Soal 🧠</h2>
+        <span className="bg-amber-100 text-amber-800 px-4 py-1 rounded-full text-sm font-bold border border-amber-300">
+          Soal {currentQ + 1} / {questions.length}
+        </span>
+      </div>
+
+      <div className="bg-white p-8 rounded-2xl shadow-lg border-2 border-gray-100 mb-8 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+        <p className="text-xl font-bold text-gray-800 mb-8 leading-relaxed">{questions[currentQ].q}</p>
+        <div className="space-y-4">
+          {questions[currentQ].options.map((opt, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleSelect(idx)}
+              className={`w-full text-left p-5 rounded-xl border-2 transition-all duration-200 font-medium ${
+                selected === idx
+                  ? 'bg-amber-500 text-white border-amber-600 shadow-lg transform scale-[1.02]'
+                  : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-amber-50 hover:border-amber-300'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${selected === idx ? 'bg-white text-amber-600' : 'bg-gray-200 text-gray-500'}`}>
+                  {['A', 'B', 'C', 'D'][idx]}
+                </span>
+                {opt}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <button
+        onClick={nextQuestion}
+        disabled={selected === null}
+        className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 rounded-xl font-bold text-lg hover:shadow-xl hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed transition-all transform active:scale-95"
+      >
+        {currentQ === questions.length - 1 ? "Lihat Hasil 🏁" : "Lanjut ➡️"}
+      </button>
+    </div>
+  );
+};
+
+// --- TAB 6: REFLEKSI ---
+const Refleksi = ({ playSound }) => {
+  const [notes, setNotes] = useState({ learn: '', confuse: '', feel: '' });
+  const [saved, setSaved] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    playSound('win');
+    setSaved(true);
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
+      <div className="border-b-4 border-amber-200 pb-4">
+        <h2 className="text-2xl font-black text-gray-800">Refleksi Diri 🪞</h2>
+        <p className="text-gray-600">Sebelum pulang, curhat dulu yuk tentang pelajaran hari ini.</p>
+      </div>
+
+      {!saved ? (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="bg-yellow-50 p-6 rounded-2xl border border-yellow-200">
+            <label className="block text-md font-bold text-gray-800 mb-3">
+              1. Satu hal baru yang saya pelajari hari ini:
+            </label>
+            <textarea
+              className="w-full p-4 border-2 border-yellow-200 rounded-xl focus:ring-4 focus:ring-yellow-200 focus:border-yellow-400 outline-none transition-all bg-white"
+              rows={3}
+              placeholder="Saya baru tau kalau..."
+              value={notes.learn}
+              onChange={(e) => setNotes({ ...notes, learn: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="bg-orange-50 p-6 rounded-2xl border border-orange-200">
+            <label className="block text-md font-bold text-gray-800 mb-3">
+              2. Satu hal yang masih bikin bingung:
+            </label>
+            <textarea
+              className="w-full p-4 border-2 border-orange-200 rounded-xl focus:ring-4 focus:ring-orange-200 focus:border-orange-400 outline-none transition-all bg-white"
+              rows={2}
+              placeholder="Saya masih bingung pas bagian..."
+              value={notes.confuse}
+              onChange={(e) => setNotes({ ...notes, confuse: e.target.value })}
+            />
+          </div>
+
+          <div className="bg-blue-50 p-6 rounded-2xl border border-blue-200">
+            <label className="block text-md font-bold text-gray-800 mb-3">
+              3. Perasaan saya hari ini:
+            </label>
+            <div className="flex flex-wrap gap-4">
+              {['🤩 Seru', '🙂 Paham', '😐 B aja', '🤯 Pusing'].map((emoji) => (
+                <button
+                  type="button"
+                  key={emoji}
+                  onClick={() => { playSound('click'); setNotes({ ...notes, feel: emoji }); }}
+                  className={`px-6 py-3 rounded-full border-2 font-bold transition-all transform hover:scale-105 active:scale-95 ${
+                    notes.feel === emoji ? 'bg-blue-500 border-blue-600 text-white shadow-lg' : 'bg-white border-gray-200 text-gray-600 hover:bg-blue-50'
+                  }`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button type="submit" className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-black shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1">
+            Kirim Refleksi 🚀
+          </button>
+        </form>
+      ) : (
+        <div className="bg-white border-4 border-green-400 p-10 rounded-3xl text-center space-y-6 animate-scale-in shadow-2xl">
+          <div className="inline-block p-4 bg-green-100 rounded-full">
+            <CheckCircle className="w-20 h-20 text-green-600" />
+          </div>
+          <h3 className="text-3xl font-black text-gray-800">TERIMA KASIH!</h3>
+          <p className="text-gray-600 text-lg">Catatanmu sudah disimpan. Sampai jumpa di pelajaran berikutnya!</p>
+          
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 text-left text-sm text-gray-600 max-w-md mx-auto shadow-inner">
+            <p className="mb-2"><strong>📝 Pelajaran:</strong> {notes.learn}</p>
+            <p className="mb-2"><strong>🤔 Bingung:</strong> {notes.confuse || "-"}</p>
+            <p><strong>Mood:</strong> {notes.feel}</p>
+          </div>
+          
+          <button onClick={() => { playSound('click'); setSaved(false); }} className="text-amber-600 font-bold underline hover:text-amber-800">
+            Edit Jawaban
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
